@@ -3,8 +3,13 @@
 use coverage_formats::jacoco::JacocoReport;
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| {
-    let _ = JacocoReport::from_read(&mut &data.to_vec()[..]);
+use std::cell::UnsafeCell;
 
-    // fuzzed code goes here
+fuzz_target!(|data: &[u8]| {
+    // It's a fuzz test, i know that it's safe to use UnsafeCell here
+    let data_unsafecell = UnsafeCell::new(data);
+    // Safety: it's safe since each time fuzz function executes,
+    // there is only one owner of th data
+    let mut_data_ref = unsafe { &mut (*data_unsafecell.get()) };
+    let _ = JacocoReport::from_read(mut_data_ref);
 });

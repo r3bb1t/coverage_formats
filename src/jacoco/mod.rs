@@ -26,7 +26,7 @@ pub(super) enum BlockType {
 /// Data object describing a session which was the source of execution data.
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-struct SessionInfo {
+pub struct SessionInfo {
     /// arbitrary session identifier
     id: String,
     /// the epoc based time stamp when execution data recording has been started
@@ -50,48 +50,48 @@ pub struct ExecutionData {
 }
 
 impl JacocoReport {
-    fn new(session_infos: Vec<SessionInfo>, execution_datas: Vec<ExecutionData>) -> Self {
+    pub fn new(session_infos: Vec<SessionInfo>, execution_datas: Vec<ExecutionData>) -> Self {
         Self {
             session_infos,
             execution_datas,
         }
     }
 
-    fn session_infos(&self) -> &Vec<SessionInfo> {
+    pub fn session_infos(&self) -> &Vec<SessionInfo> {
         &self.session_infos
     }
 
-    fn session_infos_mut(&mut self) -> &Vec<SessionInfo> {
+    pub fn session_infos_mut(&mut self) -> &Vec<SessionInfo> {
         &mut self.session_infos
     }
 
-    fn execution_datas(&self) -> &Vec<ExecutionData> {
+    pub fn execution_datas(&self) -> &Vec<ExecutionData> {
         &self.execution_datas
     }
 
-    fn execution_datas_mut(&mut self) -> &Vec<ExecutionData> {
+    pub fn execution_datas_mut(&mut self) -> &Vec<ExecutionData> {
         &mut self.execution_datas
     }
 }
 
 impl ExecutionData {
-    fn new(id: i64, name: String, probes: Vec<bool>) -> Self {
+    pub fn new(id: i64, name: String, probes: Vec<bool>) -> Self {
         Self { id, name, probes }
     }
 
-    fn id(&self) -> &i64 {
+    pub fn id(&self) -> &i64 {
         &self.id
     }
 
-    fn name(&self) -> &String {
+    pub fn name(&self) -> &String {
         &self.name
     }
 
-    fn probes(&self) -> &Vec<bool> {
+    pub fn probes(&self) -> &Vec<bool> {
         &self.probes
     }
 
-    fn covered_lines(&self) -> usize {
+    pub fn covered_lines(&self) -> usize {
         self.probes().iter().filter(|probe| probe == &&true).count()
     }
 }
@@ -112,10 +112,43 @@ impl JacocoReport {
     pub(super) const FORMAT_VERSION: i16 = 0x1007;
 }
 
-impl TryFrom<i8> for BlockType {
+impl ExecutionData {
+    pub fn try_merge(self, other: Self) -> core::result::Result<Self, JacocoError> {
+        if self.id != other.id {
+            return Err(JacocoError::IllegalStateDifferentIds(self.id, other.id));
+        }
+
+        if self.name != other.name {
+            return Err(JacocoError::IllegalStateDifferentNames(
+                self.name, other.name, self.id,
+            ));
+        }
+
+        if self.probes.len() != other.probes().len() {
+            return Err(JacocoError::IllegalStateIncompatibleProbes(
+                self.name, self.id,
+            ));
+        }
+
+        let probes: Vec<bool> = self
+            .probes
+            .iter()
+            .zip(other.probes.iter())
+            .map(|(&old, &new)| old || new)
+            .collect();
+
+        Ok(Self {
+            id: self.id,
+            name: self.name,
+            probes,
+        })
+    }
+}
+
+impl TryFrom<u8> for BlockType {
     type Error = JacocoError;
 
-    fn try_from(value: i8) -> core::result::Result<Self, Self::Error> {
+    fn try_from(value: u8) -> core::result::Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Header),
             0x10 => Ok(Self::SessionInfo),

@@ -124,8 +124,8 @@ impl JacocoReport {
         Ok(value)
     }
 
-    fn read<R: Read>(r: &mut R) -> std::io::Result<i8> {
-        r.read_i8()
+    fn read<R: Read>(r: &mut R) -> std::io::Result<u8> {
+        r.read_u8()
     }
 
     fn read_char<R: Read>(r: &mut R) -> std::io::Result<i16> {
