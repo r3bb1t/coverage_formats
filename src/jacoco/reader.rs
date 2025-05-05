@@ -116,7 +116,7 @@ impl JacocoReport {
     }
 
     pub fn read_var_int<R: Read>(r: &mut R) -> std::io::Result<i32> {
-        let mut value = r.read_i8()? as i32;
+        let mut value: i32 = r.read_i8()?.into();
         if (value & 0x80) == 0 {
             return Ok(value);
         }
