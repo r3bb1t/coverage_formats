@@ -1,21 +1,23 @@
 pub(super) use super::{Error, Result};
-
-use core::fmt::Display;
+pub use error::JacocoError;
 
 use chrono::{DateTime, Datelike, Local};
-pub use error::JacocoError;
+use core::fmt::Display;
+
+#[cfg(feature = "serialization")]
+use serde::{Deserialize, Serialize};
 
 mod error;
 mod reader;
 
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct JacocoReport {
     session_infos: Vec<SessionInfo>,
     execution_datas: Vec<ExecutionData>,
 }
 
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum BlockType {
     Header = 0x01,
@@ -24,7 +26,7 @@ pub(super) enum BlockType {
 }
 
 /// Data object describing a session which was the source of execution data.
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct SessionInfo {
     /// arbitrary session identifier
@@ -38,7 +40,7 @@ pub struct SessionInfo {
 /// Execution data for a single Java class. While instances are immutable care
 /// has to be taken about the probe data array of type `Vec<bool>`
 /// which can be modified.
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ExecutionData {
     /// class identifier
@@ -93,6 +95,12 @@ impl ExecutionData {
 
     pub fn covered_lines(&self) -> usize {
         self.probes().iter().filter(|probe| probe == &&true).count()
+    }
+}
+
+impl SessionInfo {
+    pub fn new(id: String, start: DateTime<Local>, dump: DateTime<Local>) -> Self {
+        Self { id, start, dump }
     }
 }
 
