@@ -108,14 +108,14 @@ impl JacocoReport {
     /// Magic number in header for file format identification.
     pub(super) const MAGIC_NUMBER: i16 = 0xC0C0u16 as i16;
 
-    /// Block identifier for file headers.
-    pub(super) const BLOCK_HEADER: i8 = 0x01;
-
-    /// Block identifier for session information.
-    pub(super) const BLOCK_SESSIONINFO: i8 = 0x10;
-
-    /// Block identifier for execution data of a single class.
-    pub(super) const BLOCK_EXECUTIONDATA: i8 = 0x11;
+    ///// Block identifier for file headers.
+    //pub(super) const BLOCK_HEADER: i8 = 0x01;
+    //
+    ///// Block identifier for session information.
+    //pub(super) const BLOCK_SESSIONINFO: i8 = 0x10;
+    //
+    ///// Block identifier for execution data of a single class.
+    //pub(super) const BLOCK_EXECUTIONDATA: i8 = 0x11;
 
     pub(super) const FORMAT_VERSION: i16 = 0x1007;
 }

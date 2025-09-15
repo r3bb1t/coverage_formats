@@ -19,3 +19,10 @@ path = "fuzz_targets/fuzz_jacoco_read.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_go_read"
+path = "fuzz_targets/fuzz_go_read.rs"
+test = false
+doc = false
+bench = false

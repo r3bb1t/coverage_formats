@@ -20,12 +20,13 @@ impl JacocoReport {
             }
             is_first_block = false;
 
-            if let Err(Error::Io(io_error)) =
+            let Err(Error::Io(io_error)) =
                 Self::read_block(r, block_type, &mut session_infos, &mut execution_datas)
-            {
-                if io_error.kind() == ErrorKind::UnexpectedEof {
-                    break;
-                }
+            else {
+                continue;
+            };
+            if io_error.kind() == ErrorKind::UnexpectedEof {
+                break;
             }
         }
 
