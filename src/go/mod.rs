@@ -6,7 +6,7 @@ pub use error::GoCoverageError;
 
 pub mod reader;
 
-use lazy_regex::lazy_regex;
+use lazy_regex::{Lazy, Regex, lazy_regex};
 
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -51,18 +51,29 @@ impl FromStr for GoProfileMode {
     }
 }
 
+static GO_PROFILE_BLOCK_RE: Lazy<Regex, fn() -> Regex> =
+    lazy_regex!(r#"^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$"#);
+
 impl FromStr for GoProfileBlock {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let line_re =
-            lazy_regex!(r#"^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$"#);
-        let captures = line_re
+        let captures = GO_PROFILE_BLOCK_RE
             .captures(s)
             .ok_or(error::GoCoverageError::InvalidLine(s.to_string()))?;
 
-        let (_, [filename, start_line, start_col, end_line, end_col, number_of_statements, count]) =
-            captures.extract();
+        let (
+            _,
+            [
+                filename,
+                start_line,
+                start_col,
+                end_line,
+                end_col,
+                number_of_statements,
+                count,
+            ],
+        ) = captures.extract();
 
         let block = Self {
             filename: filename.to_string(),
