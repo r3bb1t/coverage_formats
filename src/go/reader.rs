@@ -1,16 +1,17 @@
 use super::Result;
 use crate::go::{GoCoverageError, GoProfileBlock, GoProfileMode, GoReport};
 
-use lazy_regex::lazy_regex;
+use lazy_regex::{lazy_regex, Lazy, Regex};
 use std::{io::BufRead, str::FromStr};
+
+static FIRST_LINE_RE: Lazy<Regex, fn() -> Regex> = lazy_regex!("^mode: (.*)\n$");
 
 impl GoReport {
     pub fn from_buf_read<R: BufRead>(r: &mut R) -> Result<Self> {
         // 12 since normally we expect first line to be not longer than "mode: atomic" + newline
         let mut first_line = String::with_capacity(13);
         r.read_line(&mut first_line)?;
-        let first_line_re = lazy_regex!("^mode: (.*)\n$");
-        let captures = first_line_re
+        let captures = FIRST_LINE_RE
             .captures(&first_line)
             .ok_or(GoCoverageError::InvalidMode)?;
 
@@ -31,7 +32,7 @@ impl GoReport {
 
         let report = Self {
             mode,
-            profile_blocks,
+            blocks: profile_blocks,
         };
 
         Ok(report)

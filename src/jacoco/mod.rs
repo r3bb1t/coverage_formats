@@ -11,14 +11,14 @@ mod error;
 mod reader;
 
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct JacocoReport {
     session_infos: Vec<SessionInfo>,
     execution_datas: Vec<ExecutionData>,
 }
 
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) enum BlockType {
     Header = 0x01,
     SessionInfo = 0x10,

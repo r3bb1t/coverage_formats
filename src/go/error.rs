@@ -10,4 +10,7 @@ pub enum GoCoverageError {
 
     #[error("Invalid line: {0:?}")]
     InvalidLine(String),
+
+    #[error("inconsistent NumStmt: changed from {from} to {to}")]
+    InconsistentNumStmt { from: u32, to: u32 },
 }

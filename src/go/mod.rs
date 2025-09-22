@@ -1,18 +1,19 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 pub(super) use super::{Error, Result};
 pub mod error;
 pub use error::GoCoverageError;
 
 pub mod reader;
+pub mod writer;
 
-use lazy_regex::{Lazy, Regex, lazy_regex};
+use lazy_regex::{lazy_regex, Lazy, Regex};
 
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum GoProfileMode {
     Set,
     Count,
@@ -20,14 +21,14 @@ pub enum GoProfileMode {
 }
 
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct GoReport {
     mode: GoProfileMode,
-    profile_blocks: Vec<GoProfileBlock>,
+    blocks: Vec<GoProfileBlock>,
 }
 
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct GoProfileBlock {
     filename: String,
     start_line: u32,
@@ -36,6 +37,69 @@ pub struct GoProfileBlock {
     end_col: u32,
     number_of_statements: u32,
     count: u32,
+}
+
+impl GoReport {
+    /// # Errors
+    ///
+    /// Will return 'GoCoverageError::InconsistentNumStmt' if it encounters two coverages of the
+    /// same block with different numbers of statements
+    pub fn try_merge(self, other: Self) -> Result<Self> {
+        let mode = [self.mode, other.mode]
+            .into_iter()
+            .find(|m| *m != GoProfileMode::Set)
+            .unwrap_or(GoProfileMode::Set);
+
+        type Key = (String, u32, u32, u32, u32);
+
+        let mut map: HashMap<Key, GoProfileBlock> =
+            HashMap::with_capacity(core::cmp::max(self.blocks.len(), other.blocks.len()));
+
+        let make_key = |b: &GoProfileBlock| {
+            (
+                b.filename.clone(),
+                b.start_line,
+                b.start_col,
+                b.end_line,
+                b.end_col,
+            )
+        };
+
+        // Insert all blocks from self
+        for b in self.blocks {
+            map.insert(make_key(&b), b);
+        }
+
+        // Merge non-zero blocks from other
+        for b in other.blocks.into_iter().filter(|b| b.count != 0) {
+            let k = make_key(&b);
+            match map.entry(k) {
+                std::collections::hash_map::Entry::Occupied(mut occ) => {
+                    let existing = occ.get_mut();
+                    if existing.number_of_statements != b.number_of_statements {
+                        return Err(Error::Go(GoCoverageError::InconsistentNumStmt {
+                            from: b.number_of_statements,
+                            to: existing.number_of_statements,
+                        }));
+                    }
+                    existing.count = match mode {
+                        GoProfileMode::Set => existing.count | b.count,
+                        GoProfileMode::Count | GoProfileMode::Atomic => {
+                            existing.count.saturating_add(b.count)
+                        }
+                    };
+                }
+                std::collections::hash_map::Entry::Vacant(vac) => {
+                    vac.insert(b);
+                }
+            }
+        }
+
+        let mut blocks: Vec<_> = map.into_values().collect();
+        blocks.sort();
+
+        Ok(GoReport { mode, blocks })
+    }
 }
 
 impl FromStr for GoProfileMode {
@@ -51,6 +115,16 @@ impl FromStr for GoProfileMode {
     }
 }
 
+impl GoProfileMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            GoProfileMode::Set => "set",
+            GoProfileMode::Count => "count",
+            GoProfileMode::Atomic => "atomic",
+        }
+    }
+}
+
 static GO_PROFILE_BLOCK_RE: Lazy<Regex, fn() -> Regex> =
     lazy_regex!(r#"^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$"#);
 
@@ -62,18 +136,8 @@ impl FromStr for GoProfileBlock {
             .captures(s)
             .ok_or(error::GoCoverageError::InvalidLine(s.to_string()))?;
 
-        let (
-            _,
-            [
-                filename,
-                start_line,
-                start_col,
-                end_line,
-                end_col,
-                number_of_statements,
-                count,
-            ],
-        ) = captures.extract();
+        let (_, [filename, start_line, start_col, end_line, end_col, number_of_statements, count]) =
+            captures.extract();
 
         let block = Self {
             filename: filename.to_string(),
@@ -93,7 +157,7 @@ impl GoReport {
     pub fn new(mode: GoProfileMode, profile_blocks: Vec<GoProfileBlock>) -> Self {
         Self {
             mode,
-            profile_blocks,
+            blocks: profile_blocks,
         }
     }
 
@@ -106,10 +170,10 @@ impl GoReport {
     }
 
     pub fn profile_blocks(&self) -> &Vec<GoProfileBlock> {
-        &self.profile_blocks
+        &self.blocks
     }
     pub fn profile_blocks_mut(&mut self) -> &mut Vec<GoProfileBlock> {
-        &mut self.profile_blocks
+        &mut self.blocks
     }
 }
 

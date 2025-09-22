@@ -102,7 +102,7 @@ impl JacocoReport {
         Ok(execution_data)
     }
 
-    pub fn read_boolean_array<R: Read>(r: &mut R) -> Result<Vec<bool>> {
+    fn read_boolean_array<R: Read>(r: &mut R) -> Result<Vec<bool>> {
         let length = usize::try_from(Self::read_var_int(r)?)?;
         let mut value = Vec::with_capacity(length);
         let mut buffer = 0;
@@ -116,7 +116,7 @@ impl JacocoReport {
         Ok(value)
     }
 
-    pub fn read_var_int<R: Read>(r: &mut R) -> std::io::Result<i32> {
+    fn read_var_int<R: Read>(r: &mut R) -> std::io::Result<i32> {
         let mut value: i32 = r.read_i8()?.into();
         if (value & 0x80) == 0 {
             return Ok(value);
